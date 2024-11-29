@@ -4,8 +4,8 @@ from networkx.algorithms import bipartite
 import matplotlib.pyplot as plt
 import random  # For random user selection
 
-# Load datasets
-def load_data():
+# Load datdhdhdbdbdbfbd
+def load_data();
     books = pd.read_csv(
         'Books.csv',
         encoding='latin1',
