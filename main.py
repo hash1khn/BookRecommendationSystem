@@ -2,9 +2,10 @@ import pandas as pd
 import networkx as nx
 from networkx.algorithms import bipartite
 import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
 import random  # For random user selection
 
-# Load datdhdhdbdbdbfbd
+# Load datasets
 def load_data():
     books = pd.read_csv(
         'Books.csv',
@@ -23,12 +24,15 @@ def load_data():
     )
     ratings = pd.read_csv('Ratings.csv', encoding='latin1', delimiter=',')
     users = pd.read_csv('Users.csv', encoding='latin1', delimiter=',')
+    
     return books, ratings, users
 
 # Preprocess the data
 def preprocess_data(books, ratings, users):
     user_counts = ratings['User-ID'].value_counts()
     book_counts = ratings['ISBN'].value_counts()
+    ratings['ISBN'] = ratings['ISBN'].str.strip().str.lower()
+    books['ISBN'] = books['ISBN'].str.strip().str.lower()
 
     active_users = user_counts[user_counts >= 50].index
     popular_books = book_counts[book_counts >= 100].index
@@ -39,6 +43,11 @@ def preprocess_data(books, ratings, users):
     ]
 
     return filtered_ratings
+
+# Split data into training and test sets
+def split_data(ratings):
+    train, test = train_test_split(ratings, test_size=0.2, random_state=42)
+    return train, test    
 
 # Create a bipartite graph
 def create_bipartite_graph(ratings):
@@ -146,6 +155,26 @@ def test_recommendations(user_id, books, users, recommendations):
         print(
             f"- {book_title} (Score: {rec['score']:.2f}) [Based on {rec['type']}]"
         )
+# Evaluate recommendations
+def evaluate_recommendations(recommendations, test_ratings, user_id):
+    # Get the ground truth: books the user rated in the test set
+    true_books = set(test_ratings[test_ratings['User-ID'] == user_id]['ISBN'])
+    
+    # Extract book identifiers from recommendations
+    recommended_books = set([rec for rec in recommendations])
+
+    # Calculate true positives, false positives, and false negatives
+    tp = len(true_books & recommended_books)  # True Positives
+    fp = len(recommended_books - true_books)  # False Positives
+    fn = len(true_books - recommended_books)  # False Negatives
+
+    # Calculate precision, recall, and F1 score
+    precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+    recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+    f1 = (2 * precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
+
+    return precision, recall, f1
+
 
 def visualize_graphs(B, book_graph, user_graph):
     # Create a custom layout for bipartite graph (vertical arrangement)
@@ -197,6 +226,8 @@ def main():
     # Preprocess ratings data
     filtered_ratings = preprocess_data(books, ratings, users)
 
+    train_ratings, test_ratings = split_data(ratings)
+
     # Create the bipartite graph
     B = create_bipartite_graph(filtered_ratings)
 
@@ -215,6 +246,15 @@ def main():
     )
 
     test_recommendations(random_user_id, books, users, recommendations)
+
+    precision, recall, f1 = evaluate_recommendations(recommendations, test_ratings, random_user_id)
+
+        # Display the results
+    print(f"Recommendations for User {random_user_id}: {recommendations}")
+    print(f"Evaluation Metrics:")
+    print(f"- Precision: {precision:.2f}")
+    print(f"- Recall: {recall:.2f}")
+    print(f"- F1 Score: {f1:.2f}")
 
     # Visualize the graphs
     visualize_graphs(B, book_graph, user_graph)
